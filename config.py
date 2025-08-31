@@ -4,7 +4,7 @@
 """
 
 import os
-from typing import List, Tuple
+from typing import List
 
 # ---------------- ОСНОВНЫЕ НАСТРОЙКИ ----------------
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
