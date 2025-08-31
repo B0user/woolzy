@@ -23,8 +23,7 @@ from telegram.ext import (
 )
 
 # Импорты из модулей
-from config import BOT_TOKEN, DB_PATH, is_admin, GROUP_LINK, GUIDE_LINK, SHOP_LINK
-from timings import TIMELINE
+from config import BOT_TOKEN, DB_PATH, is_admin, GROUP_LINK, GUIDE_LINK, SHOP_LINK, TIMELINE
 from messages import MESSAGES
 from buttons import BUTTON_SETS, get_special_buttons
 from stats import utcnow_iso, db_connect, build_stats_text, get_users_list, reset_statistics
@@ -232,11 +231,20 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         conn.commit()
 
     if payload == "btn_group":
-        await query.message.reply_text(f"Вот ссылка на закрытую группу: <a href='{GROUP_LINK}'>Перейти в группу</a>", parse_mode=ParseMode.HTML)
+        await query.message.reply_text(f"Вот ссылка на закрытую группу: <a href='{GROUP_LINK}'>перейти в группу</a>", parse_mode=ParseMode.HTML)
     elif payload == "btn_guide":
         await query.message.reply_text(f"Вот твой PDF-гайд: <a href='{GUIDE_LINK}'>Скачать PDF</a>", parse_mode=ParseMode.HTML)
+        
+        # Планируем отправку видео через 24 часа после клика на гайд
+        context.job_queue.run_once(
+            send_timed_message,
+            # when=24 * 3600,  # 24 часа в секундах
+            when=5,
+            data={"chat_id": update.effective_chat.id, "user_id": user.id, "key": "video"},
+            name=f"msg_{user.id}_video_24h_after_guide",
+        )
     elif payload == "btn_kaspi":
-        await query.message.reply_text(f"Оформить заказ в Kaspi: <a href='{SHOP_LINK}'>Перейти в Kaspi</a>", parse_mode=ParseMode.HTML)
+        await query.message.reply_text(f"Оформить заказ в Kaspi: <a href='{SHOP_LINK}'>перейти в Kaspi</a>", parse_mode=ParseMode.HTML)
     elif payload == "btn_stats" or payload.startswith("stats_"):
         if not is_admin(user.id, update.effective_chat.id if update.effective_chat else None):
             await query.answer("Недоступно", show_alert=False)
