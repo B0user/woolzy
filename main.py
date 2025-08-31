@@ -23,7 +23,8 @@ from telegram.ext import (
 )
 
 # Импорты из модулей
-from config import BOT_TOKEN, DB_PATH, is_admin, GROUP_LINK, GUIDE_LINK, SHOP_LINK, TIMELINE
+from config import BOT_TOKEN, DB_PATH, is_admin, GROUP_LINK, GUIDE_LINK, SHOP_LINK
+from timings import TIMELINE
 from messages import MESSAGES
 from buttons import BUTTON_SETS, get_special_buttons
 from stats import utcnow_iso, db_connect, build_stats_text, get_users_list, reset_statistics
