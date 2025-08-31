@@ -114,21 +114,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         conn.commit()
 
-    # Планируем таймеры
-    for delay, key in TIMELINE:
-        context.job_queue.run_once(
-            send_timed_message,
-            when=delay,
-            data={"chat_id": chat_id, "user_id": user.id, "key": key},
-            name=f"msg_{user.id}_{key}_{delay}",
-        )
-
-    # Отправляем приветствие сразу (кроме админов)
+    # Планируем таймеры только для обычных пользователей
     if not is_admin(user.id, chat_id):
+        for delay, key in TIMELINE:
+            context.job_queue.run_once(
+                send_timed_message,
+                when=delay,
+                data={"chat_id": chat_id, "user_id": user.id, "key": key},
+                name=f"msg_{user.id}_{key}_{delay}",
+            )
+
+        # Отправляем приветствие сразу
         await send_timed_message(
             CallbackContext.from_update(update, context),
             data={"chat_id": chat_id, "user_id": user.id, "key": "welcome"},
         )
+    else:
+        # Для админов отправляем только статистику и кнопку для тестирования последовательности
+        await send_admin_overview(context, chat_id, user.id)
 
 async def send_timed_message(context: CallbackContext, data: dict | None = None) -> None:
     """Отправка сообщения по таймеру"""
@@ -153,12 +156,6 @@ async def send_timed_message(context: CallbackContext, data: dict | None = None)
     # Специальные кнопки для конкретных сообщений
     special_buttons = get_special_buttons(key)
     rows.extend(special_buttons)
-
-    # Админская кнопка статистики (видна только админам)
-    if is_admin(user_id, chat_id):
-        rows.append([
-            InlineKeyboardButton(text="📊 Статистика", callback_data="btn_stats"),
-        ])
 
     if rows:
         keyboard = InlineKeyboardMarkup(rows)
@@ -238,13 +235,39 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Планируем отправку видео через 24 часа после клика на гайд
         context.job_queue.run_once(
             send_timed_message,
-            # when=24 * 3600,  # 24 часа в секундах
-            when=5,
+            when=24 * 3600,  # 24 часа в секундах
             data={"chat_id": update.effective_chat.id, "user_id": user.id, "key": "video"},
             name=f"msg_{user.id}_video_24h_after_guide",
         )
     elif payload == "btn_kaspi":
         await query.message.reply_text(f"Оформить заказ в Kaspi: <a href='{SHOP_LINK}'>перейти в Kaspi</a>", parse_mode=ParseMode.HTML)
+    elif payload == "btn_test_sequence":
+        if not is_admin(user.id, update.effective_chat.id if update.effective_chat else None):
+            await query.answer("Недоступно", show_alert=False)
+            return
+        
+        # Отправляем последовательность сообщений для тестирования (без таймеров)
+        await query.message.reply_text("🎬 Начинаем тест последовательности сообщений...")
+        
+        # Отправляем welcome сообщение
+        await send_timed_message(
+            CallbackContext.from_update(update, context),
+            data={"chat_id": update.effective_chat.id, "user_id": user.id, "key": "welcome"},
+        )
+        
+        # Планируем остальные сообщения с короткими интервалами для тестирования
+        test_delays = [5, 10, 15]  # 5, 10, 15 секунд для быстрого тестирования
+        for i, (_, key) in enumerate(TIMELINE):
+            if i < len(test_delays):
+                context.job_queue.run_once(
+                    send_timed_message,
+                    when=test_delays[i],
+                    data={"chat_id": update.effective_chat.id, "user_id": user.id, "key": key},
+                    name=f"test_{user.id}_{key}_{test_delays[i]}",
+                )
+        
+        await query.answer("Тест запущен! Сообщения придут через 5, 10, 15 секунд.", show_alert=True)
+        
     elif payload == "btn_stats" or payload.startswith("stats_"):
         if not is_admin(user.id, update.effective_chat.id if update.effective_chat else None):
             await query.answer("Недоступно", show_alert=False)
@@ -318,6 +341,26 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await query.message.reply_text(text, parse_mode=ParseMode.HTML)
     else:
         await query.answer("Зафиксировал! ✅")
+
+async def send_admin_overview(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
+    """Отправляет админу обзор статистики и кнопки управления"""
+    text = (
+        "👋 Привет, администратор!\n\n"
+        "📊 Здесь ты можешь посмотреть статистику бота и протестировать последовательность сообщений.\n\n"
+        "Выбери действие:"
+    )
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="btn_stats")],
+        [InlineKeyboardButton(text="🎬 Тест последовательности", callback_data="btn_test_sequence")],
+    ])
+    
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.HTML
+    )
 
 # ---------------- ЗАПУСК ----------------
 async def on_startup(app: Application) -> None:
