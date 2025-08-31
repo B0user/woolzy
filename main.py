@@ -256,7 +256,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         
         # Планируем остальные сообщения с короткими интервалами для тестирования
-        test_delays = [5, 10, 15]  # 5, 10, 15 секунд для быстрого тестирования
+        test_delays = [5, 10, 15, 20]  # 5, 10, 15, 20 секунд для быстрого тестирования
         for i, (_, key) in enumerate(TIMELINE):
             if i < len(test_delays):
                 context.job_queue.run_once(
@@ -266,7 +266,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     name=f"test_{user.id}_{key}_{test_delays[i]}",
                 )
         
-        await query.answer("Тест запущен! Сообщения придут через 5, 10, 15 секунд.", show_alert=True)
+        await query.answer("Тест запущен! Сообщения придут через 5, 10, 15, 20 секунд.", show_alert=True)
         
     elif payload == "btn_stats" or payload.startswith("stats_"):
         if not is_admin(user.id, update.effective_chat.id if update.effective_chat else None):
