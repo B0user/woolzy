@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
       {
-        name: "tg-bot",
+        name: "woozly-bot",
         script: "main.py",
         interpreter: "python3",
         env: {
